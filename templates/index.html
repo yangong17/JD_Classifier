@@ -363,6 +363,50 @@
             color: var(--text-secondary);
             font-style: italic;
         }
+
+        /* Live Logs styles */
+        .live-logs {
+            max-height: 300px;
+            overflow-y: auto;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.8rem;
+        }
+
+        .live-logs.active {
+            display: block;
+        }
+
+        .log-entry {
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-entry .log-title {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .log-entry .log-results {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+
+        .log-entry.success {
+            border-left: 3px solid var(--success);
+        }
+
+        .log-entry.error {
+            border-left: 3px solid var(--error);
+        }
     </style>
 </head>
 
@@ -477,7 +521,7 @@
                     <label>Phase</label>
                     <select id="phase">
                         <option value="1">Phase 1 - Classification Check (Yes/No)</option>
-                        <option value="2">Phase 2 - Detailed Scoring (1-5)</option>
+                        <option value="2" selected>Phase 2 - Detailed Scoring (1-5)</option>
                     </select>
                 </div>
 
@@ -529,6 +573,9 @@
             </div>
             <p class="progress-text" id="progressText">Processing...</p>
         </div>
+
+        <!-- Live Logs -->
+        <div class="live-logs" id="liveLogs" style="display: none;"></div>
 
         <!-- Result -->
         <div class="result-box" id="resultBox">
@@ -664,11 +711,14 @@
             const progressFill = document.getElementById('progressFill');
             const progressText = document.getElementById('progressText');
             const resultBox = document.getElementById('resultBox');
+            const liveLogs = document.getElementById('liveLogs');
 
             btn.disabled = true;
             progressContainer.classList.add('active');
             resultBox.classList.remove('active');
             progressFill.style.width = '0%';
+            liveLogs.innerHTML = '';
+            liveLogs.style.display = 'block';
 
             const data = {
                 phase: document.getElementById('phase').value,
@@ -705,6 +755,18 @@
                                         const pct = (data.current / data.total) * 100;
                                         progressFill.style.width = pct + '%';
                                         progressText.textContent = `Processing ${data.current}/${data.total}: ${data.title}...`;
+
+                                        // Add log entry with results
+                                        const logEntry = document.createElement('div');
+                                        logEntry.className = 'log-entry success';
+                                        let resultsHtml = '';
+                                        if (data.results) {
+                                            const resultItems = Object.entries(data.results).map(([k, v]) => `${k}: ${v}`).join(' | ');
+                                            resultsHtml = `<div class="log-results">${resultItems}</div>`;
+                                        }
+                                        logEntry.innerHTML = `<div class="log-title">✓ Row ${data.current}: ${data.title}</div>${resultsHtml}`;
+                                        liveLogs.appendChild(logEntry);
+                                        liveLogs.scrollTop = liveLogs.scrollHeight;
                                     } else if (data.status === 'complete') {
                                         progressFill.style.width = '100%';
                                         progressText.textContent = `Completed ${data.rows} rows!`;
@@ -713,6 +775,10 @@
                                         btn.disabled = false;
                                     } else if (data.status === 'error') {
                                         progressText.textContent = 'Error: ' + data.message;
+                                        const logEntry = document.createElement('div');
+                                        logEntry.className = 'log-entry error';
+                                        logEntry.innerHTML = `<div class="log-title">❌ Error: ${data.message}</div>`;
+                                        liveLogs.appendChild(logEntry);
                                         btn.disabled = false;
                                     }
                                 } catch (e) { }

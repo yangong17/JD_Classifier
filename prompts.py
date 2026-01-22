@@ -2,18 +2,31 @@
 Prompt templates and scoring rubrics for job description classification.
 """
 
-# List of compensable factors
+# List of compensable factors - must match EXACTLY what the LLM returns
 FACTORS = [
-    "Knowledge & Skills",
-    "Problem Solving & Complexity",
+    "Knowledge and Skills",
+    "Problem Solving and Complexity",
     "Decision Authority",
-    "Impact & Organizational Scope",
-    "Stakeholder Interaction & Influence",
+    "Impact and Organizational Scope",
+    "Stakeholder Interaction and Influence",
     "Experience",
     "Supervisory Responsibility",
-    "Budget & Resource Accountability",
+    "Budget and Resource Accountability",
     "Working Conditions",
 ]
+
+# Mapping from factor names to desired CSV column names
+FACTOR_COLUMN_NAMES = {
+    "Knowledge and Skills": "Knowledge_Skills",
+    "Problem Solving and Complexity": "Problem_Solving",
+    "Decision Authority": "Decision_Authority",
+    "Impact and Organizational Scope": "Impact_Org_Scope",
+    "Stakeholder Interaction and Influence": "Stakeholder_Influence",
+    "Experience": "Experience",
+    "Supervisory Responsibility": "Supervisory_Responsibility",
+    "Budget and Resource Accountability": "Budget_Resource_Accountability",
+    "Working Conditions": "Working_Conditions",
+}
 
 # Phase 1: Binary check prompt
 PHASE1_PROMPT = """Analyze the following job description and determine if it contains information related to these 9 compensable factors.

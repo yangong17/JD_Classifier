@@ -10,17 +10,18 @@ import glob
 import pandas as pd
 from flask import Flask, render_template, request, jsonify, Response, send_file
 from dotenv import load_dotenv
-from prompts import FACTORS, PHASE1_PROMPT, PHASE2_PROMPT
+from prompts import FACTORS, FACTOR_COLUMN_NAMES, PHASE1_PROMPT, PHASE2_PROMPT
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from .env in the script's directory
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(_script_dir, ".env"))
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
 # Folders for file handling
 UPLOAD_FOLDER = "/tmp/classifier_uploads"
-OUTPUT_FOLDER = "/tmp/classifier_outputs"
+OUTPUT_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
@@ -44,9 +45,9 @@ MODELS = {
         "input_cost": 1.25,
         "output_cost": 10.00,
     },
-    "gemini-3-pro": {
+    "gemini-3-pro-preview": {
         "provider": "google",
-        "name": "Gemini 3 Pro (Most Advanced)",
+        "name": "Gemini 3 Pro (Preview)",
         "input_cost": 2.50,
         "output_cost": 15.00,
     },
@@ -67,40 +68,14 @@ MODELS = {
 # Content placeholder marker
 CONTENT_PLACEHOLDER = "{content}"
 
-# Default prompt template
-DEFAULT_PROMPT_TEMPLATE = """You are a highly seasoned compensation consultant with over 30 years of experience conducting municipal compensation studies. Your task is to classify compensable factors in the following job-related text across nine dimensions. Assign a score (1–5) for each factor.
-
-Guidelines:
-- Use only explicitly stated information in the text.
-
-Factors to rate (with brief descriptors):
-1. Knowledge and Skills — depth and breadth of expertise required
-2. Problem Solving and Complexity — judgment and complexity of work
-3. Decision Authority — autonomy and discretion in decisions
-4. Impact and Organizational Scope — breadth and significance of impact
-5. Stakeholder Interaction and Influence — interaction complexity and influence level
-6. Experience Relevance — amount of prior relevant experience needed
-7. Supervisory Responsibility — people leadership and accountability for others
-8. Budget and Resource Accountability — responsibility for budget, assets, or allocation
-9. Working Conditions — environmental or contextual job demands
-
-Text to analyze:
-{content}
-
-Instructions:
-Rate each factor using the 1–5 scale. Use only explicitly stated information and avoid assumptions. If information is ambiguous or missing, default to the more conservative (lower) rating.
-
-Respond in the following exact format (labels plus number, one per line, no extra text):
-
-Knowledge and Skills: 3
-Problem Solving and Complexity: 3
-Decision Authority: 3
-Impact and Organizational Scope: 3
-Stakeholder Interaction and Influence: 3
-Experience Relevance: 3
-Supervisory Responsibility: 3
-Budget and Resource Accountability: 3
-Working Conditions: 3"""
+# Load default prompt from file
+def load_default_prompt():
+    prompt_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "default_prompt.txt")
+    try:
+        with open(prompt_file, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "[ERROR: default_prompt.txt not found]"
 
 
 # =============================================================================
@@ -209,13 +184,16 @@ def index():
         except:
             pass
 
+    # Load default prompt from file
+    default_prompt = load_default_prompt()
+
     return render_template(
         "index.html",
         models=MODELS,
         factors=FACTORS,
         csv_files=csv_files,
         columns=columns,
-        default_prompt=DEFAULT_PROMPT_TEMPLATE,
+        default_prompt=default_prompt,
         content_placeholder=CONTENT_PLACEHOLDER,
         google_key_set=bool(os.getenv("GOOGLE_API_KEY")),
         anthropic_key_set=bool(os.getenv("ANTHROPIC_API_KEY")),
@@ -238,7 +216,7 @@ def get_sample():
     data = request.get_json()
     csv_file = data.get("csv_file")
     column = data.get("column")
-    prompt_template = data.get("prompt_template", DEFAULT_PROMPT_TEMPLATE)
+    prompt_template = data.get("prompt_template", load_default_prompt())
     
     try:
         df = pd.read_csv(csv_file)
@@ -272,7 +250,7 @@ def estimate_cost():
     data = request.get_json()
     csv_file = data.get("csv_file")
     column = data.get("column")
-    prompt_template = data.get("prompt_template", DEFAULT_PROMPT_TEMPLATE)
+    prompt_template = data.get("prompt_template", load_default_prompt())
     row_limit = data.get("row_limit")
     
     try:
@@ -330,7 +308,7 @@ def process():
     model = data.get("model", "gemini-2.0-flash")
     column = data.get("column", "description")
     row_limit = data.get("row_limit")
-    prompt_template = data.get("prompt_template", DEFAULT_PROMPT_TEMPLATE)
+    prompt_template = data.get("prompt_template", load_default_prompt())
     csv_path = data.get("csv_path", "job_descriptions.csv")
     google_api_key = data.get("google_api_key", "").strip() or None
     anthropic_api_key = data.get("anthropic_api_key", "").strip() or None
@@ -346,7 +324,21 @@ def process():
                 df = df.head(row_limit)
 
             total = len(df)
-            yield f"data: {json.dumps({'status': 'starting', 'total': total})}\n\n"
+            
+            # Prepare output file and columns
+            output_file = f"classification_phase{phase}.csv"
+            output_path = os.path.join(OUTPUT_FOLDER, output_file)
+            
+            # Use custom column names from mapping
+            result_columns = [FACTOR_COLUMN_NAMES[f] for f in FACTORS]
+            
+            # Initialize output dataframe with NaN for result columns
+            output_df = df.copy()
+            for col in result_columns:
+                output_df[col] = pd.NA
+            output_df["Raw_Response"] = ""
+            
+            yield f"data: {json.dumps({'status': 'starting', 'total': total, 'file': output_file})}\n\n"
 
             # Initialize LLM
             provider, client = get_llm_client(model, google_api_key, anthropic_api_key)
@@ -354,12 +346,9 @@ def process():
             # Select parse function based on phase
             parse_func = parse_phase1_response if phase == "1" else parse_phase2_response
 
-            results = []
             for i, row in df.iterrows():
                 job_desc = str(row[column])
                 title = row.get("title", "N/A")[:40]
-
-                yield f"data: {json.dumps({'status': 'processing', 'current': i + 1, 'total': total, 'title': title})}\n\n"
 
                 # Build prompt by replacing content placeholder
                 prompt = prompt_template.replace(CONTENT_PLACEHOLDER, job_desc)
@@ -372,19 +361,18 @@ def process():
                     parsed = {f: -1 for f in FACTORS}
                     parsed["_raw"] = f"ERROR: {e}"
 
-                results.append(parsed)
-
-            # Build output
-            output_df = df.copy()
-            suffix = "Check" if phase == "1" else "Score"
-            for factor in FACTORS:
-                output_df[f"{factor} {suffix}"] = [r.get(factor, -1) for r in results]
-            output_df[f"Phase{phase}_Raw"] = [r.get("_raw", "") for r in results]
-
-            # Save
-            output_file = f"classification_phase{phase}.csv"
-            output_path = os.path.join(OUTPUT_FOLDER, output_file)
-            output_df.to_csv(output_path, index=False)
+                # Update output dataframe with this row's results using column name mapping
+                for factor in FACTORS:
+                    col_name = FACTOR_COLUMN_NAMES[factor]
+                    output_df.at[i, col_name] = parsed.get(factor, -1)
+                output_df.at[i, "Raw_Response"] = parsed.get("_raw", "")
+                
+                # Save incrementally after each row
+                output_df.to_csv(output_path, index=False)
+                
+                # Send result data to frontend for live display
+                result_summary = {f: parsed.get(f, -1) for f in FACTORS}
+                yield f"data: {json.dumps({'status': 'processing', 'current': i + 1, 'total': total, 'title': title, 'results': result_summary})}\n\n"
 
             yield f"data: {json.dumps({'status': 'complete', 'file': output_file, 'rows': total})}\n\n"
 
