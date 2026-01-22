@@ -1,0 +1,6 @@
+playwright
+pandas
+google-genai
+anthropic
+python-dotenv
+flask

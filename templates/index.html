@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Classification Tool</title>
+    <style>
+        :root {
+            --bg-primary: #0f0f1a;
+            --bg-secondary: #1a1a2e;
+            --bg-card: #252542;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b8;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --border: #3f3f5a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--accent), #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-title::before {
+            content: '';
+            width: 4px;
+            height: 1.2rem;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        select,
+        input,
+        textarea {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+
+        select:focus,
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        textarea {
+            min-height: 200px;
+            resize: vertical;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .row-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.875rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-badge.success {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+        }
+
+        .status-badge.warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+        }
+
+        .status-badge.error {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--error);
+        }
+
+        .api-status {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .progress-container {
+            display: none;
+            margin-top: 1rem;
+        }
+
+        .progress-container.active {
+            display: block;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), #a855f7);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .result-box {
+            display: none;
+            padding: 1rem;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success);
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .result-box.active {
+            display: block;
+        }
+
+        .result-box a {
+            color: var(--success);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .result-box a:hover {
+            text-decoration: underline;
+        }
+
+        .factors-list {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .factors-list span {
+            padding: 0.35rem 0.5rem;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        /* Cost estimation styles */
+        .cost-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .cost-table th,
+        .cost-table td {
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .cost-table th {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .cost-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .cost-table .total {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .cost-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+        }
+
+        .cost-summary-item {
+            background: var(--bg-secondary);
+            padding: 0.75rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .cost-summary-item .value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .cost-summary-item .label {
+            color: var(--text-secondary);
+        }
+
+        /* Prompt template styles */
+        .placeholder-hint {
+            font-size: 0.8rem;
+            color: var(--warning);
+            margin-top: 0.5rem;
+        }
+
+        .placeholder-hint code {
+            background: var(--bg-secondary);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+        }
+
+        /* Preview section */
+        .preview-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+        }
+
+        .loading {
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Job Classification Tool</h1>
+        <p class="subtitle">Analyze job descriptions for compensable factors using LLMs</p>
+
+        <!-- API Keys -->
+        <div class="card">
+            <div class="card-title">API Keys</div>
+            <div class="api-status">
+                {% if google_key_set %}
+                <span class="status-badge success">● Google API Key in .env</span>
+                {% else %}
+                <span class="status-badge warning">● Google API Key not in .env</span>
+                {% endif %}
+
+                {% if anthropic_key_set %}
+                <span class="status-badge success">● Anthropic API Key in .env</span>
+                {% else %}
+                <span class="status-badge warning">● Anthropic API Key not in .env</span>
+                {% endif %}
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                Enter API keys below (overrides .env) or add them to <code
+                    style="background: var(--bg-secondary); padding: 0.15rem 0.4rem; border-radius: 4px;">.env</code>
+                file
+            </p>
+            <div class="row">
+                <div class="form-group">
+                    <label>Google API Key</label>
+                    <input type="password" id="google_api_key" placeholder="Enter Google API Key...">
+                </div>
+                <div class="form-group">
+                    <label>Anthropic API Key</label>
+                    <input type="password" id="anthropic_api_key" placeholder="Enter Anthropic API Key...">
+                </div>
+            </div>
+        </div>
+
+        <!-- Cost Estimation -->
+        <div class="card" id="costCard">
+            <div class="card-title">Estimated Cost</div>
+            <div class="cost-summary" id="costSummary">
+                <div class="cost-summary-item">
+                    <div class="value" id="totalRows">-</div>
+                    <div class="label">Rows to Process</div>
+                </div>
+                <div class="cost-summary-item">
+                    <div class="value" id="totalInputTokens">-</div>
+                    <div class="label">Est. Input Tokens</div>
+                </div>
+                <div class="cost-summary-item">
+                    <div class="value" id="totalOutputTokens">-</div>
+                    <div class="label">Est. Output Tokens</div>
+                </div>
+            </div>
+            <table class="cost-table">
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Input Cost</th>
+                        <th>Output Cost</th>
+                        <th>Total Cost</th>
+                    </tr>
+                </thead>
+                <tbody id="costTableBody">
+                    <tr>
+                        <td colspan="4" class="loading">Select CSV and column to see estimates...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Data Source Settings -->
+        <div class="card">
+            <div class="card-title">Data Source</div>
+
+            <div class="row-3">
+                <div class="form-group">
+                    <label>CSV File</label>
+                    <select id="csv_file" onchange="onCsvChange()">
+                        {% for csv in csv_files %}
+                        <option value="{{ csv }}">{{ csv }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Column to Analyze</label>
+                    <select id="column" onchange="updateEstimates()">
+                        {% for col in columns %}
+                        <option value="{{ col }}" {% if col=='description' %}selected{% endif %}>{{ col }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Row Limit (empty = all)</label>
+                    <input type="number" id="row_limit" placeholder="e.g., 5" value="5" onchange="updateEstimates()">
+                </div>
+            </div>
+        </div>
+
+        <!-- Model Settings -->
+        <div class="card">
+            <div class="card-title">Model Settings</div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label>Phase</label>
+                    <select id="phase">
+                        <option value="1">Phase 1 - Classification Check (Yes/No)</option>
+                        <option value="2">Phase 2 - Detailed Scoring (1-5)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Model</label>
+                    <select id="model">
+                        {% for model_id, info in models.items() %}
+                        <option value="{{ model_id }}">{{ info.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prompt Template -->
+        <div class="card">
+            <div class="card-title">Prompt Template</div>
+            <div class="form-group">
+                <label>Full Prompt (use <code
+                        style="background: var(--bg-secondary); padding: 0.15rem 0.4rem; border-radius: 4px;">{{ content_placeholder }}</code>
+                    to mark where CSV content will be inserted)</label>
+                <textarea id="prompt_template" onchange="updateEstimates()">{{ default_prompt }}</textarea>
+                <p class="placeholder-hint">
+                    ⚠️ Make sure your prompt contains <code>{{ content_placeholder }}</code> - this will be replaced
+                    with the actual CSV column content for each row.
+                </p>
+            </div>
+        </div>
+
+        <!-- Factors Reference -->
+        <div class="card">
+            <div class="card-title">Compensable Factors</div>
+            <div class="factors-list">
+                {% for factor in factors %}
+                <span>{{ loop.index }}. {{ factor }}</span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Run Button -->
+        <button class="btn btn-primary" id="runBtn" onclick="runClassification()">
+            🚀 Run Classification
+        </button>
+
+        <!-- Progress -->
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <p class="progress-text" id="progressText">Processing...</p>
+        </div>
+
+        <!-- Result -->
+        <div class="result-box" id="resultBox">
+            <p>✅ Classification complete!</p>
+            <p><a id="downloadLink" href="#">Download Results</a></p>
+        </div>
+
+        <!-- Sample Preview -->
+        <div class="card" style="margin-top: 1.5rem;">
+            <div class="preview-header">
+                <div class="card-title" style="margin-bottom: 0;">Sample Prompt Preview</div>
+                <button class="btn btn-secondary btn-sm" onclick="refreshPreview()">🔄 Refresh Preview</button>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                This shows what the complete prompt will look like when sent to the LLM (using sample data from the
+                selected CSV):
+            </p>
+            <div class="preview-box" id="previewBox">
+                <span class="loading">Click "Refresh Preview" to see a sample prompt...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            updateEstimates();
+            refreshPreview();
+        });
+
+        // Handle CSV file change
+        function onCsvChange() {
+            const csvFile = document.getElementById('csv_file').value;
+
+            fetch('/get_columns/' + encodeURIComponent(csvFile))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.columns) {
+                        const columnSelect = document.getElementById('column');
+                        columnSelect.innerHTML = '';
+                        data.columns.forEach(col => {
+                            const option = document.createElement('option');
+                            option.value = col;
+                            option.textContent = col;
+                            if (col === 'description') option.selected = true;
+                            columnSelect.appendChild(option);
+                        });
+                        updateEstimates();
+                        refreshPreview();
+                    }
+                });
+        }
+
+        // Update cost estimates
+        function updateEstimates() {
+            const data = {
+                csv_file: document.getElementById('csv_file').value,
+                column: document.getElementById('column').value,
+                prompt_template: document.getElementById('prompt_template').value,
+                row_limit: document.getElementById('row_limit').value || null
+            };
+
+            fetch('/estimate_cost', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.error) {
+                        document.getElementById('costTableBody').innerHTML =
+                            '<tr><td colspan="4" class="loading">Error: ' + result.error + '</td></tr>';
+                        return;
+                    }
+
+                    // Update summary
+                    document.getElementById('totalRows').textContent = result.total_rows.toLocaleString();
+                    document.getElementById('totalInputTokens').textContent = result.total_input_tokens.toLocaleString();
+                    document.getElementById('totalOutputTokens').textContent = result.total_output_tokens.toLocaleString();
+
+                    // Update table
+                    let tableHtml = '';
+                    for (const [modelId, estimate] of Object.entries(result.cost_estimates)) {
+                        tableHtml += `
+                        <tr>
+                            <td>${estimate.name}</td>
+                            <td>$${estimate.input_cost.toFixed(4)}</td>
+                            <td>$${estimate.output_cost.toFixed(4)}</td>
+                            <td class="total">$${estimate.total_cost.toFixed(4)}</td>
+                        </tr>
+                    `;
+                    }
+                    document.getElementById('costTableBody').innerHTML = tableHtml;
+                })
+                .catch(err => {
+                    console.error('Error updating estimates:', err);
+                });
+        }
+
+        // Refresh sample preview
+        function refreshPreview() {
+            const previewBox = document.getElementById('previewBox');
+            previewBox.innerHTML = '<span class="loading">Loading preview...</span>';
+
+            const data = {
+                csv_file: document.getElementById('csv_file').value,
+                column: document.getElementById('column').value,
+                prompt_template: document.getElementById('prompt_template').value
+            };
+
+            fetch('/get_sample', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.error) {
+                        previewBox.innerHTML = '<span class="loading">Error: ' + result.error + '</span>';
+                        return;
+                    }
+
+                    previewBox.textContent = result.preview_prompt;
+                })
+                .catch(err => {
+                    previewBox.innerHTML = '<span class="loading">Error loading preview</span>';
+                });
+        }
+
+        function runClassification() {
+            const btn = document.getElementById('runBtn');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const resultBox = document.getElementById('resultBox');
+
+            btn.disabled = true;
+            progressContainer.classList.add('active');
+            resultBox.classList.remove('active');
+            progressFill.style.width = '0%';
+
+            const data = {
+                phase: document.getElementById('phase').value,
+                model: document.getElementById('model').value,
+                column: document.getElementById('column').value,
+                row_limit: document.getElementById('row_limit').value || null,
+                prompt_template: document.getElementById('prompt_template').value,
+                csv_path: document.getElementById('csv_file').value,
+                google_api_key: document.getElementById('google_api_key').value,
+                anthropic_api_key: document.getElementById('anthropic_api_key').value
+            };
+
+            fetch('/process', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).then(response => {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                function read() {
+                    reader.read().then(({ done, value }) => {
+                        if (done) return;
+
+                        const text = decoder.decode(value);
+                        const lines = text.split('\n');
+
+                        lines.forEach(line => {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.substring(6));
+
+                                    if (data.status === 'processing') {
+                                        const pct = (data.current / data.total) * 100;
+                                        progressFill.style.width = pct + '%';
+                                        progressText.textContent = `Processing ${data.current}/${data.total}: ${data.title}...`;
+                                    } else if (data.status === 'complete') {
+                                        progressFill.style.width = '100%';
+                                        progressText.textContent = `Completed ${data.rows} rows!`;
+                                        resultBox.classList.add('active');
+                                        document.getElementById('downloadLink').href = '/download/' + data.file;
+                                        btn.disabled = false;
+                                    } else if (data.status === 'error') {
+                                        progressText.textContent = 'Error: ' + data.message;
+                                        btn.disabled = false;
+                                    }
+                                } catch (e) { }
+                            }
+                        });
+
+                        read();
+                    });
+                }
+
+                read();
+            });
+        }
+    </script>
+</body>
+
+</html>
